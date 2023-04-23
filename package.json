@@ -13,6 +13,7 @@
     "test": "test"
   },
   "dependencies": {
+    "ghost-cursor": "^1.1.18",
     "prettier": "^2.4.1",
     "puppeteer": "^14.4.1",
     "puppeteer-extra": "^3.3.0",

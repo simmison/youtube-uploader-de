@@ -3,6 +3,7 @@ import puppeteer from 'puppeteer-extra'
 import { PuppeteerNodeLaunchOptions, Browser, Page, ElementHandle } from 'puppeteer'
 import fs from 'fs-extra'
 import path from 'path'
+import { GhostCursor, createCursor } from 'ghost-cursor'
 
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')()
 StealthPlugin.enabledEvasions.delete('iframe.contentWindow')
@@ -17,6 +18,7 @@ const height = 900
 const width = 900
 
 let browser: Browser, page: Page
+let cursor: GhostCursor
 let cookiesDirPath: string
 let cookiesFilePath: string
 
@@ -112,11 +114,11 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     const addVideoBtnXPath = '//*[@id="text-item-0"]/ytcp-ve/div/div/yt-formatted-string'
     if ((await page.waitForXPath(createBtnXPath, { timeout: 5000 }).catch(() => null))) {
         const createBtn = await page.$x(createBtnXPath);
-        await createBtn[0].click();
+        await cursor.click(createBtn[0])
     }
     if ((await page.waitForXPath(addVideoBtnXPath, { timeout: 5000 }).catch(() => null))) {
         const addVideoBtn = await page.$x(addVideoBtnXPath);
-        await addVideoBtn[0].click();
+        await cursor.click(addVideoBtn[0])
     }
     for (let i = 0; i < 2; i++) {
         try {
@@ -142,7 +144,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     const selectBtn = await page.$x(selectBtnXPath)
     const [fileChooser] = await Promise.all([
         page.waitForFileChooser(),
-        selectBtn[0].click() // button that triggers file selection
+        await cursor.click(selectBtn[0])
     ])
     await fileChooser.accept([pathToFile])
     // Setup onProgress
@@ -209,7 +211,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
         const thumbBtn = await page.$x(thumbnailChooserXpath)
         const [thumbChooser] = await Promise.all([
             page.waitForFileChooser(),
-            thumbBtn[0].click() // button that triggers file selection
+            await cursor.click(thumbBtn[0])
         ])
         await thumbChooser.accept([thumb])
     }
@@ -226,7 +228,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     await textBoxes[1].type(description.substring(0, maxDescLen))
 
     const childOption = await page.$x('//*[contains(text(),"No, it\'s")]')
-    await childOption[0].click()
+    await cursor.click(childOption[0])
     
     // There is no reason for this to be called. Also you should be using #toggle-button not going by the text...
     // const moreOption = await page.$x("//*[normalize-space(text())='Show more']")
@@ -238,7 +240,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
         // Selecting playlist
         for (let i = 0; i < 2; i++) {
             try {
-                await page.evaluate((el) => el.click(), playlist[0])
+                await page.evaluate((el) => cursor.click(el), playlist[0])
                 // Type the playlist name to filter out
                 await page.waitForSelector('#search-input')
                 await page.focus(`#search-input`)
@@ -248,37 +250,37 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
                 const playlistToSelectXPath = "//*[normalize-space(text())=" + escapedPlaylistName + "]";
                 await page.waitForXPath(playlistToSelectXPath, { timeout: 10000 })
                 const playlistNameSelector = await page.$x(playlistToSelectXPath)
-                await page.evaluate((el) => el.click(), playlistNameSelector[0])
+                await page.evaluate((el) => cursor.click(el), playlistNameSelector[0])
                 createplaylistdone = await page.$x("//*[normalize-space(text())='Done']")
-                await page.evaluate((el) => el.click(), createplaylistdone[0])
+                await page.evaluate((el) => cursor.click(el), createplaylistdone[0])
                 break
             } catch (error) {
                 // Creating new playlist
                 // click on playlist dropdown
-                await page.evaluate((el) => el.click(), playlist[0])
+                await page.evaluate((el) => cursor.click(el), playlist[0])
                 // click New playlist button
                 const newPlaylistXPath =
                     "//*[normalize-space(text())='New playlist'] | //*[normalize-space(text())='Create playlist']"
                 await page.waitForXPath(newPlaylistXPath)
                 const createplaylist = await page.$x(newPlaylistXPath)
-                await page.evaluate((el) => el.click(), createplaylist[0])
+                await page.evaluate((el) => cursor.click(el), createplaylist[0])
                 // Enter new playlist name
                 await page.keyboard.type(' ' + playlistName.substring(0, 148))
                 // click create & then done button
                 const createplaylistbtn = await page.$x("//*[normalize-space(text())='Create']")
-                await page.evaluate((el) => el.click(), createplaylistbtn[1])
+                await page.evaluate((el) => cursor.click(el), createplaylistbtn[1])
                 createplaylistdone = await page.$x("//*[normalize-space(text())='Done']")
-                await page.evaluate((el) => el.click(), createplaylistdone[0])
+                await page.evaluate((el) => cursor.click(el), createplaylistdone[0])
             }
         }
     }
 
     if (!videoJSON.isNotForKid) {
-        await page.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_MFK']").catch(()=>{})
+        await cursor.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_MFK']").catch(()=>{})
     } else if (videoJSON.isAgeRestriction) {
-        await page.$eval(`tp-yt-paper-radio-button[name='VIDEO_AGE_RESTRICTION_SELF']`, (e :any) => e.click());
+        await page.$eval(`tp-yt-paper-radio-button[name='VIDEO_AGE_RESTRICTION_SELF']`, (e :any) => cursor.click(e));
     }else {
-        await page.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_NOT_MFK']").catch(()=>{})
+        await cursor.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_NOT_MFK']").catch(()=>{})
     }
     // await page.waitForXPath('//ytcp-badge[contains(@class,"draft-badge")]//div[contains(text(),"Saved as private")]', { timeout: 0})
 
@@ -293,7 +295,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
         while ( (  await page.$( "ytcp-video-metadata-editor-advanced" )  ) == undefined )
         {
             // console.log( "Show more while." )
-            await showMoreButton.click()
+            await cursor.click(showMoreButton)
             await sleep( 1000 )
         }
         // console.log( "Show more finished." )
@@ -313,14 +315,14 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     // Selecting video language
     if (videoLang) {
         const langHandler = await page.$x("//*[normalize-space(text())='Video language']")
-        await page.evaluate((el) => el.click(), langHandler[0])
+        await page.evaluate((el) => cursor.click(el), langHandler[0])
         // translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')
         const langName = await page.$x(
             '//*[normalize-space(translate(text(),"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"))=\'' +
             videoLang.toLowerCase() +
             "']"
         )
-        await page.evaluate((el) => el.click(), langName[langName.length - 1])
+        await page.evaluate((el) => cursor.click(el), langName[langName.length - 1])
     }
 
     // Setting Game Title ( Will also set Category to gaming )
@@ -333,7 +335,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
 
     await page.waitForXPath(nextBtnXPath);
     next = await page.$x(nextBtnXPath);
-    await next[0].click();
+    await cursor.click(next[0]);
 
     if (videoJSON.isChannelMonetized) {
         try {
@@ -341,13 +343,13 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
 
             await page.waitForTimeout(1500);
 
-            await page.click("#child-input ytcp-video-monetization");
+            await cursor.click("#child-input ytcp-video-monetization");
 
             await page.waitForSelector(
                 "ytcp-video-monetization-edit-dialog.cancel-button-hidden .ytcp-video-monetization-edit-dialog #radioContainer #onRadio"
             );
             await page.evaluate(() =>
-                (document.querySelector("ytcp-video-monetization-edit-dialog.cancel-button-hidden .ytcp-video-monetization-edit-dialog #radioContainer #onRadio") as HTMLInputElement).click()
+                cursor.click("ytcp-video-monetization-edit-dialog.cancel-button-hidden .ytcp-video-monetization-edit-dialog #radioContainer #onRadio")
             );
 
             await page.waitForTimeout(1500);
@@ -356,7 +358,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
                 "ytcp-video-monetization-edit-dialog.cancel-button-hidden .ytcp-video-monetization-edit-dialog #save-button",
                 { visible: true }
             );
-            await page.click(
+            await cursor.click(
                 "ytcp-video-monetization-edit-dialog.cancel-button-hidden .ytcp-video-monetization-edit-dialog #save-button"
             );
 
@@ -364,7 +366,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
 
             await page.waitForXPath(nextBtnXPath);
             next = await page.$x(nextBtnXPath);
-            await next[0].click();
+            await cursor.click(next[0]);
         } catch { }
 
         try {
@@ -373,7 +375,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
                 { visible: true, timeout: 10000 }
             );
             await page.evaluate(() =>
-                (document.querySelector(".ytpp-self-certification-questionnaire .ytpp-self-certification-questionnaire #checkbox-container") as HTMLInputElement).click()
+                cursor.click(".ytpp-self-certification-questionnaire .ytpp-self-certification-questionnaire #checkbox-container")
             );
 
             await page.waitForTimeout(1500);
@@ -383,12 +385,12 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
                 { visible: true }
             );
             await page.evaluate(() =>
-                (document.querySelector(".ytpp-self-certification-questionnaire .ytpp-self-certification-questionnaire #submit-questionnaire-button") as HTMLButtonElement).click()
+                cursor.click(".ytpp-self-certification-questionnaire .ytpp-self-certification-questionnaire #submit-questionnaire-button")
             );
 
             await page.waitForXPath(nextBtnXPath);
             next = await page.$x(nextBtnXPath);
-            await next[0].click();
+            await cursor.click(next[0]);
 
             await page.waitForTimeout(1500);
         } catch {}
@@ -398,18 +400,18 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     await page.waitForXPath(nextBtnXPath)
     // click next button
     next = await page.$x(nextBtnXPath)
-    await next[0].click()
+    await cursor.click(next[0])
     await page.waitForXPath(nextBtnXPath)
     // click next button
     next = await page.$x(nextBtnXPath)
-    await next[0].click()
+    await cursor.click(next[0])
 
     if (videoJSON.publishType) {
         await page.waitForSelector("#privacy-radios *[name=\""+videoJSON.publishType+"\"]", { visible: true });
         
         await page.waitForTimeout(1000);
 
-        await page.click("#privacy-radios *[name=\""+videoJSON.publishType+"\"]");
+        await cursor.click("#privacy-radios *[name=\""+videoJSON.publishType+"\"]");
     }
 
     // Get publish button
@@ -434,7 +436,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
     for (let i = 0; i < 10; i++) {
         try {
             closeDialog = await page.$x(closeDialogXPath)
-            await closeDialog[0].click()
+            await cursor.click(closeDialog[0])
             break
         } catch (error) {
             await page.waitForTimeout(5000)
@@ -448,7 +450,7 @@ async function uploadVideo(videoJSON: Video, messageTransport: MessageTransport)
                 { visible: true }
             );
 
-            await page.click("#dialog-buttons #secondary-action-button");
+            await cursor.click("#dialog-buttons #secondary-action-button");
         } catch {}
     }
 
@@ -553,7 +555,7 @@ const publishComment = (comment: Comment) => {
             await page.focus(`#placeholder-area`)
             const commentBox = await page.$x('//*[@id="placeholder-area"]')
             await commentBox[0].focus()
-            await commentBox[0].click()
+            await cursor.click(commentBox[0])
             await commentBox[0].type(cmt.substring(0, 10000))
 
             page.exposeFunction('commentResolve', resolve)
@@ -625,7 +627,7 @@ const publishComment = (comment: Comment) => {
                 })
             }
 
-            await page.click('#submit-button')
+            await cursor.click('#submit-button')
 
             if (comment.pin) {
                 // Let mutation observer resolve promise after pinning comment
@@ -697,7 +699,7 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
     }
 
     let edit = await page.$x(editXpath)
-    await edit[0].click()
+    await cursor.click(edit[0])
     const titleE = '//*[@id="textbox"]'
     await page.waitForXPath(titleE, { timeout: 70000 })
     await page.waitForFunction('document.querySelectorAll(\'[id="textbox"]\').length > 1')
@@ -707,11 +709,11 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
     await textBoxes[0].focus()
     await page.waitForTimeout(1000)
     if (!videoJSON.isNotForKid) {
-        await page.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_MFK']").catch(()=>{})
+        await cursor.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_MFK']").catch(()=>{})
     } else if (videoJSON.isAgeRestriction) {
         await page.$eval(`tp-yt-paper-radio-button[name='VIDEO_AGE_RESTRICTION_SELF']`, (e :any) => e.click());
     }else {
-        await page.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_NOT_MFK']").catch(()=>{})
+        await cursor.click("tp-yt-paper-radio-button[name='VIDEO_MADE_FOR_KIDS_NOT_MFK']").catch(()=>{})
     }
     if (title) {
         // await page.keyboard.down('Control')
@@ -735,9 +737,9 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
         const [thumbChooser] = await Promise.all([
             page.waitForFileChooser({ timeout: 500 }).catch(async () => {
                 messageTransport.log('replacing previous thumbanail')
-                await page.click('#still-1 > button')
+                await cursor.click('#still-1 > button')
                 await page.waitForSelector('#save > div')
-                await page.click(`#save > div`)
+                await cursor.click(`#save > div`)
                 await page.waitForXPath("//*[normalize-space(text())='Save']/parent::*[@disabled]")
                 await sleep(500)
                 return await page.waitForFileChooser()
@@ -745,7 +747,7 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
             await page.waitForSelector(
                 `[class="remove-default-style style-scope ytcp-thumbnails-compact-editor-uploader"]`
             ),
-            await page.click(`[class="remove-default-style style-scope ytcp-thumbnails-compact-editor-uploader"]`)
+            await cursor.click(`[class="remove-default-style style-scope ytcp-thumbnails-compact-editor-uploader"]`)
         ])
         await thumbChooser.accept([thumb])
     }
@@ -757,7 +759,7 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
     if (playlistName) {
         for (let i = 0; i < 2; i++) {
             try {
-                await page.evaluate((el) => el.click(), playlist[0])
+                await page.evaluate((el) => cursor.click(el), playlist[0])
                 await page.waitForSelector('#search-input')
                 await page.focus(`#search-input`)
                 await page.type(`#search-input`, playlistName)
@@ -767,45 +769,45 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
 
                 await page.waitForXPath(playlistToSelectXPath, { timeout: 10000 })
                 const playlistNameSelector = await page.$x(playlistToSelectXPath)
-                await page.evaluate((el) => el.click(), playlistNameSelector[0])
+                await page.evaluate((el) => cursor.click(el), playlistNameSelector[0])
                 createplaylistdone = await page.$x("//*[normalize-space(text())='Done']")
-                await page.evaluate((el) => el.click(), createplaylistdone[0])
+                await page.evaluate((el) => cursor.click(el), createplaylistdone[0])
                 break
             } catch (error) {
-                await page.evaluate((el) => el.click(), playlist[0])
+                await page.evaluate((el) => cursor.click(el), playlist[0])
                 const newPlaylistXPath =
                     "//*[normalize-space(text())='New playlist'] | //*[normalize-space(text())='Create playlist']"
                 await page.waitForXPath(newPlaylistXPath)
                 const createplaylist = await page.$x(newPlaylistXPath)
-                await page.evaluate((el) => el.click(), createplaylist[0])
+                await page.evaluate((el) => cursor.click(el), createplaylist[0])
                 await page.keyboard.type(' ' + playlistName.substring(0, 148))
                 const createplaylistbtn = await page.$x("//*[normalize-space(text())='Create']")
-                await page.evaluate((el) => el.click(), createplaylistbtn[1])
+                await page.evaluate((el) => cursor.click(el), createplaylistbtn[1])
                 createplaylistdone = await page.$x("//*[normalize-space(text())='Done']")
-                await page.evaluate((el) => el.click(), createplaylistdone[0])
+                await page.evaluate((el) => cursor.click(el), createplaylistdone[0])
             }
         }
     }
     const moreOption = await page.$x("//*[normalize-space(text())='Show more']")
-    await moreOption[0].click()
+    await cursor.click(moreOption[0])
     if (tags) {
         await page.focus(`[aria-label="Tags"]`)
         await page.type(`[aria-label="Tags"]`, tags.join(', ').substring(0, 495) + ', ')
     }
     if (Rtags) {
-        await page.click('//*[@id="clear-button"]/tp-yt-iron-icon')
+        await cursor.click('//*[@id="clear-button"]/tp-yt-iron-icon')
         await page.focus(`[aria-label="Tags"]`)
         await page.type(`[aria-label="Tags"]`, Rtags.join(', ').substring(0, 495) + ', ')
     }
     if (videoLang) {
         const langHandler = await page.$x("//*[normalize-space(text())='Video language']")
-        await page.evaluate((el) => el.click(), langHandler[0])
+        await page.evaluate((el) => cursor.click(el), langHandler[0])
         const langName = await page.$x(
             '//*[normalize-space(translate(text(),"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"))=\'' +
             videoLang.toLowerCase() +
             "']"
         )
-        await page.evaluate((el) => el.click(), langName[langName.length - 1])
+        await page.evaluate((el) => cursor.click(el), langName[langName.length - 1])
     }
     // Setting Game Title ( Will also set Category to gaming )
     if ( gameTitleSearch ) {
@@ -814,7 +816,7 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
 
     await page.focus(`#content`)
     if (publish) {
-        await page.click(`#content`)
+        await cursor.click(`#content`)
         // await page.click(`#onRadio`);
         const publishBtn = await page.$x('//*[@id="first-container"]')
         await sleep(2000)
@@ -822,41 +824,38 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
         try {
             switch (publish) {
                 case 'private':
-                    await page
-                        .click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(2)`)
+                    await cursor.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(2)`)
                         .catch(
                             async (err) =>
-                                await page.click(
+                                await cursor.click(
                                     `#privacy-radios > tp-yt-paper-radio-button.style-scope.ytcp-video-visibility-select.iron-selected`
                                 )
                         )
                     break
                 case 'unlisted':
-                    await page
-                        .click(
+                    await cursor.click(
                             `#privacy-radios > tp-yt-paper-radio-button.style-scope.ytcp-video-visibility-select.iron-selected`
                         )
                         .catch(
-                            async (err) => await page.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(11)`)
+                            async (err) => await cursor.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(11)`)
                         )
                     break
                 case 'public':
-                    await page
-                        .click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(15)`)
+                    await cursor.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(15)`)
                         .catch(
-                            async (err) => await page.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(16)`)
+                            async (err) => await cursor.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(16)`)
                         )
                     break
                 case 'public&premiere':
-                    await page.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(15)`)
-                    await page.click(`#enable-premiere-checkbox`)
+                    await cursor.click(`#privacy-radios > tp-yt-paper-radio-button:nth-child(15)`)
+                    await cursor.click(`#enable-premiere-checkbox`)
                     break
             }
         } catch (err) {
             messageTransport.log('already selected')
             await page.keyboard.press('Escape')
         }
-        await page.click(`#save-button`)
+        await cursor.click(`#save-button`)
         await sleep(1200)
     }
     try {
@@ -864,7 +863,7 @@ const updateVideoInfo = async (videoJSON: VideoToEdit, messageTransport: Message
         await page.focus(`#save > div`)
 
         await page.waitForSelector('#save > div')
-        await page.click(`#save > div`)
+        await cursor.click(`#save > div`)
         await page.waitForXPath("//*[normalize-space(text())='Save']/parent::*[@disabled]")
     } catch (err) {
         messageTransport.log(err)
@@ -924,7 +923,7 @@ async function changeLoginPageLangIfNeeded(localPage: Page) {
         return
     }
 
-    await localPage.click(selectedLangSelector)
+    await cursor.click(selectedLangSelector)
 
     await localPage.waitForTimeout(1000)
 
@@ -936,7 +935,7 @@ async function changeLoginPageLangIfNeeded(localPage: Page) {
         throw new Error('Failed to find english language item : ' + e.name)
     }
 
-    await localPage.click(englishLangItemSelector)
+    await cursor.click(englishLangItemSelector)
 
     await localPage.waitForTimeout(1000)
 }
@@ -952,7 +951,7 @@ async function changeHomePageLangIfNeeded(localPage: Page) {
         throw new Error('Avatar/Profile picture button not found : ' + e.name)
     }
 
-    await localPage.click(avatarButtonSelector)
+    await cursor.click(avatarButtonSelector)
 
     const langMenuItemSelector =
         '#sections>yt-multi-page-menu-section-renderer:nth-child(3)>#items>ytd-compact-link-renderer>a'
@@ -977,7 +976,7 @@ async function changeHomePageLangIfNeeded(localPage: Page) {
         return
     }
 
-    await localPage.click(langMenuItemSelector)
+    await cursor.click(langMenuItemSelector)
 
     const englishItemXPath = "//*[normalize-space(text())='English (UK)']"
 
@@ -1008,6 +1007,7 @@ async function launchBrowser(puppeteerLaunch?: PuppeteerNodeLaunchOptions) {
 
     browser = await puppeteer.launch(puppeteerLaunch)
     page = await browser.newPage()
+    cursor = createCursor(page)
     await page.setDefaultTimeout(timeout)
     if (previousSession) {
         // If file exist load the cookies
@@ -1100,7 +1100,7 @@ async function login(localPage: Page, credentials: Credentials, messageTransport
     }
     //create channel if not already created.
     try {
-        await localPage.click('#create-channel-button');
+        await cursor.click('#create-channel-button');
         await localPage.waitForTimeout(3000);
     } catch (error) {
         messageTransport.log('Channel already exists or there was an error creating the channel.');
@@ -1130,7 +1130,7 @@ async function securityBypass(localPage: Page, recoveryemail: string, messageTra
         await localPage.waitForXPath(confirmRecoveryXPath)
 
         const confirmRecoveryBtn = await localPage.$x(confirmRecoveryXPath)
-        await localPage.evaluate((el: any) => el.click(), confirmRecoveryBtn[0])
+        await localPage.evaluate((el: any) => cursor.click(el), confirmRecoveryBtn[0])
     } catch (error) {
         messageTransport.log(error)
     }
@@ -1306,7 +1306,7 @@ async function selectGame( page: Page, gameTitle: string, gameSelector?: ( arg0:
             continue
 
         // console.log( `Selected ${gameData.title}, ${gameData.year}` )
-        await button.click()
+        await cursor.click(button)
         pressed = true
         break
     }
@@ -1315,7 +1315,7 @@ async function selectGame( page: Page, gameTitle: string, gameSelector?: ( arg0:
     {
         // Just select none.
         // console.log( `Defaulted to selecting none` )
-        await buttonOptions[0].click()
+        await cursor.click(buttonOptions[0])
     }
 }
 
